@@ -3,10 +3,29 @@ package main
 import (
   "io"
   "os"
+  "fmt"
   "errors"
+  "regexp"
+  "strings"
   "net/http"
   "path/filepath"
 )
+
+func (y *Youtube) createFilename() string {
+
+  // get title of target video
+  title := y.StreamList[0]["title"]
+  title = strings.Replace(title, " ", "_", -1)
+  filePath, _ := filepath.Abs(title)
+
+  // get the file extension of the video
+  tmp := y.StreamList[0]["type"]
+  re := regexp.MustCompile(`[\w]+\/(\w{3});`)
+  ext := re.FindStringSubmatch(tmp)
+
+  // return the absolute path of the new file
+  return filePath + "." + ext[1]
+}
 
 func (y *Youtube) StartDownload(destFile string) error {
 
@@ -38,6 +57,7 @@ func (y *Youtube) videoDLWorker(destFile string, target string) error {
 	out, err := os.Create(destFile)
 	if err != nil { return err }
 
+  fmt.Printf("\n")
 	mw := io.MultiWriter(out, y)
 	_, err = io.Copy(mw, resp.Body)
 	if err != nil { return err }
@@ -51,6 +71,7 @@ func (y *Youtube) Write(p []byte) (n int, err error) {
 	currentPercent := ((y.totalWrittenBytes / y.contentLength) * 100)
 	if (y.downloadLevel <= currentPercent) && (y.downloadLevel < 100) {
 		y.downloadLevel++
+    fmt.Printf("\rDownloading: %2.0f%% Complete\t\t\t", y.downloadLevel)
 		y.DownloadPercent <- int64(y.downloadLevel)
 	}
 	return

@@ -1,9 +1,9 @@
 package main
 
 import (
+  "os"
   "log"
-  "regexp"
-  "path/filepath"
+  "fmt"
 )
 
 type stream map[string]string
@@ -18,32 +18,29 @@ type Youtube struct {
 	downloadLevel     float64
 }
 
-func NewYoutube(debug bool) *Youtube {
+func NewYoutube() *Youtube {
 	return &Youtube{ DownloadPercent: make(chan int64, 100) }
 }
 
-func (y *Youtube) createFilename(name string) string {
-  filePath, _ := filepath.Abs(name)
-
-  tmp := y.StreamList[0]["type"]
-  re := regexp.MustCompile(`[\w]+\/(\w{3});`)
-  ext := re.FindStringSubmatch(tmp)
-
-  return filePath + "." + ext[1]
-}
-
 func main() {
-  y := NewYoutube(true)
 
-  err := y.DecodeURL("https://www.youtube.com/watch?v=-bEQKyyZQmM")
-  if err != nil {
-    log.Fatalf("Failed decoding URL: %s", err)
+  if len(os.Args) != 2 {
+    log.Fatalf("ytget-go expects 1 argument")
   }
 
-  currentFile := y.createFilename("test")
+  y := NewYoutube()
+
+  err := y.DecodeURL( os.Args[1] )
+  if err != nil {
+    log.Fatalf("Failed decoding URL: %s :%s", os.Args[1], err)
+  }
+
+  currentFile := y.createFilename()
   err = y.StartDownload(currentFile)
   if err != nil {
     log.Fatalf("Failed downloading URL: %s", err)
   }
+
+  fmt.Printf("\n\n")
 
 }
