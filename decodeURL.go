@@ -15,8 +15,15 @@ func (y *Youtube) DecodeURL(url string) error {
 	err := y.findVideoID(url)
   if err != nil { return err }
 
-  err = y.getVideoInfo()
-  if err != nil { return err }
+  // try standard embedded video info query
+  err = y.getVideoInfo(false)
+  if err != nil {
+    // if blocked, used "detailpage query"
+    err = y.getVideoInfo(true)
+    if err != nil {
+      return fmt.Errorf("'detailpage' fallback: %s", err)
+    }
+  }
 
   err = y.parseVideoInfo()
   if err != nil { return err }
@@ -24,31 +31,42 @@ func (y *Youtube) DecodeURL(url string) error {
   return nil
 }
 
+func (y *Youtube) testSuccess() error {
+
+  // parse the response from YouTube into map "answer"
+  answer, err := url.ParseQuery(y.videoInfo)
+  if err != nil { return err }
+
+  status, ok := answer["status"]
+
+  // check response for fail status
+  if !ok {
+    err = errors.New("no response status found in the server's answer")
+    return err
+  }
+
+  if status[0] == "fail" {
+    reason, ok := answer["reason"]
+    if ok {
+      err = fmt.Errorf("'fail' response status found in the server's answer, reason: '%s'", reason[0])
+    } else {
+      err = errors.New(fmt.Sprint("'fail' response status found in the server's answer, no reason given"))
+    }
+    return err
+  }
+
+  if status[0] != "ok" {
+    err = fmt.Errorf("non-success response status found in the server's answer (status: '%s')", status)
+    return err
+  }
+
+  return nil
+}
+
 func (y *Youtube) parseVideoInfo() error {
 
-	answer, err := url.ParseQuery(y.videoInfo)
-	if err != nil {
-		return err
-	}
-
-	status, ok := answer["status"]
-	if !ok {
-		err = errors.New("no response status found in the server's answer")
-		return err
-	}
-	if status[0] == "fail" {
-		reason, ok := answer["reason"]
-		if ok {
-			err = fmt.Errorf("'fail' response status found in the server's answer, reason: '%s'", reason[0])
-		} else {
-			err = errors.New(fmt.Sprint("'fail' response status found in the server's answer, no reason given"))
-		}
-		return err
-	}
-	if status[0] != "ok" {
-		err = fmt.Errorf("non-success response status found in the server's answer (status: '%s')", status)
-		return err
-	}
+  answer, err := url.ParseQuery(y.videoInfo)
+  if err != nil { return err }
 
 	// read the streams map
 	streamMap, ok := answer["url_encoded_fmt_stream_map"]
@@ -88,26 +106,29 @@ func (y *Youtube) parseVideoInfo() error {
 	return nil
 }
 
-func (y *Youtube) getVideoInfo() error {
+func (y *Youtube) getVideoInfo( detailed bool ) error {
 
-	url := "http://youtube.com/get_video_info?video_id=" + y.VideoID
+  my_url := "http://youtube.com/get_video_info?video_id=" + y.VideoID
 
-	resp, err := http.Get(url)
+  // if detailed = true, query the detailpage
+  if detailed {
+    my_url = my_url + "&el=detailpage"
+  }
+
+	resp, err := http.Get(my_url)
   defer resp.Body.Close()
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 
-	if resp.StatusCode != 200 {
-		return err
-	}
+	if resp.StatusCode != 200 { return err }
 
 	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 
 	y.videoInfo = string(body)
+
+  err = y.testSuccess()
+  if err != nil { return err }
+
 	return nil
 }
 
