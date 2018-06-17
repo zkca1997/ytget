@@ -8,7 +8,7 @@ import (
   "encoding/csv"
 )
 
-func parseCSV(inFile string) []Youtube {
+func parseCSV(inFile string, directory string) []Youtube {
 
   csvFile, err := os.Open(inFile)
   if err != nil {
@@ -33,6 +33,7 @@ func parseCSV(inFile string) []Youtube {
       artist: line[2],
       album:  line[3],
       year:   line[4],
+      directory: directory,
     })
   }
 

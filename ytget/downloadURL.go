@@ -20,7 +20,7 @@ func (y *Youtube) createFilename() {
   tmp = nospec.ReplaceAllString(tmp, "")
   tmp = nospace.ReplaceAllString(tmp, "_")
 
-  y.fileStem = tmp
+  y.fileStem = y.directory + tmp
   return
 }
 

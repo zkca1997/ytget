@@ -2,6 +2,7 @@ package main
 
 import (
   "os"
+  "log"
   "fmt"
   "time"
   "strings"
@@ -12,6 +13,7 @@ import (
 type Youtube struct {
   tgt_url           string
   fileStem          string
+  directory         string
 	contentLength     float64
 	totalWrittenBytes float64
 	downloadLevel     float64
@@ -98,27 +100,20 @@ func main() {
 
   start := time.Now()
 
-  // check command line arguments
-  if len(os.Args) != 3 {
-    fmt.Println("USAGE: ytget [path to csv file] [# workers]")
-    return
-  }
+  // get download list
+  queueFile := "/home/tkirk/Music/meta/queue.csv"
+  outDir := "/home/tkirk/Music/"
+  Targets := parseCSV(queueFile, outDir)
 
-  Targets := parseCSV(os.Args[1])
-  workers, err := strconv.Atoi(os.Args[2])  // number of worker to run
-  if err != nil {
-    fmt.Println("Invalid number of workers entered")
-    return
+  // get number of workers to run
+  var workers int
+  if len(os.Args) != 2 {
+    workers = 4
+  } else {
+    workers, err := strconv.Atoi(os.Args[2])  // number of worker to run
+    if err != nil { log.Fatalf("invalid entry for number of workers") }
+    if workers > 12 || workers < 1 { log.Fatalf("invalid number of workers") }
   }
-
-  // limit the number of workers that can be spawned
-  if workers < 1 || workers > 10 {
-    fmt.Println("Must have between 1 and 10 workers")
-    return
-  }
-
-  // make sure more workers are not started than jobs
-  if len(Targets) < workers { workers = len(Targets) }
 
   // create buffered channels
   jobs := make(chan Youtube, len(Targets))
