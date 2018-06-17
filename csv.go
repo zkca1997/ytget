@@ -27,7 +27,7 @@ func parseCSV(inFile string) []Youtube {
     }
 
     Targets = append(Targets, Youtube{
-      DownloadPercent: make(chan int, 100),
+      downloadPercent: make(chan float64, 100),
       url:    line[0],
       title:  line[1],
       artist: line[2],

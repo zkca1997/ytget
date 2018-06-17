@@ -7,11 +7,11 @@ import (
   "path/filepath"
 )
 
-func (y *Youtube) toWAV(downloadFile string) (string, error) {
+func (y *Youtube) toWAV() (string, error) {
 
-  wavFile := downloadFile + ".wav"
+  wavFile := y.fileStem + ".wav"
 
-  cmd := exec.Command("ffmpeg", "-y", "-i", downloadFile, wavFile)
+  cmd := exec.Command("ffmpeg", "-y", "-i", y.fileStem, wavFile)
   out, err := cmd.CombinedOutput()
   if err != nil {
     fmt.Println(out)
@@ -23,15 +23,14 @@ func (y *Youtube) toWAV(downloadFile string) (string, error) {
 
 func (y *Youtube) toOPUS(wavFile string) error {
 
-  //outFile := fmt.Sprintf("%s_%s.opus", y.title, y.artist)
-  outFile := wavFile + ".opus"
+  outFile := y.fileStem + ".opus"
 
   cmd := exec.Command("opusenc", "--title", y.title, "--artist", y.artist,
     "--album", y.album, "--date", y.year, wavFile, outFile)
 
   out, err := cmd.CombinedOutput()
   if err != nil {
-    fmt.Printf("%s\n", out)
+    fmt.Println(out)
     return err
   }
 

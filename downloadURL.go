@@ -3,45 +3,34 @@ package main
 import (
   "io"
   "os"
+  "fmt"
   "errors"
   "regexp"
+  "strings"
   "net/http"
   "path/filepath"
 )
 
-func (y *Youtube) createFilename() (string, string) {
+func (y *Youtube) createFilename() {
+  nospace := regexp.MustCompile(`\s`)
+  nospec  := regexp.MustCompile(`[^\w\s]`)
 
-  // get title of target video
-  title := y.StreamList[0]["title"]
-  re := regexp.MustCompile(`(\W)`)
-  title = re.ReplaceAllString(title, "_")
-  filePath, _ := filepath.Abs(title)
+  tmp := fmt.Sprintf("%s %s", y.artist, y.title)
+  tmp = strings.ToLower(tmp)
+  tmp = nospec.ReplaceAllString(tmp, "")
+  tmp = nospace.ReplaceAllString(tmp, "_")
 
-  // get the file extension of the video
-  tmp := y.StreamList[0]["type"]
-  re = regexp.MustCompile(`[\w]+\/(\w+);`)
-  ext := re.FindStringSubmatch(tmp)
-
-  // return the absolute path of the new file
-  return filePath, "." + ext[1]
+  y.fileStem = tmp
+  return
 }
 
-func (y *Youtube) StartDownload(destFile string) error {
-
-  //download highest resolution on [0]
-	targetStream := y.StreamList[0]
-	url := targetStream["url"] + "&signature=" + targetStream["sig"]
-
-	err := y.videoDLWorker(destFile, url)
-	return err
-}
-
-func (y *Youtube) videoDLWorker(destFile string, target string) error {
+func (y *Youtube) videoDLWorker() error {
 
   // get the content
-	resp, err := http.Get(target)
-  defer resp.Body.Close()
+	resp, err := http.Get(y.tgt_url)
 	if err != nil { return err }
+  defer resp.Body.Close()
+
 
 	y.contentLength = float64(resp.ContentLength)  // length of contents
 
@@ -50,10 +39,10 @@ func (y *Youtube) videoDLWorker(destFile string, target string) error {
 		return errors.New("non 200 status code received")
 	}
 
-	err = os.MkdirAll(filepath.Dir(destFile), 666)
+	err = os.MkdirAll(filepath.Dir(y.fileStem), 666)
 	if err != nil { return err }
 
-	out, err := os.Create(destFile)
+	out, err := os.Create(y.fileStem)
 	if err != nil { return err }
 
 	mw := io.MultiWriter(out, y)
@@ -69,7 +58,7 @@ func (y *Youtube) Write(p []byte) (n int, err error) {
 	currentPercent := ((y.totalWrittenBytes / y.contentLength) * 100)
 	if (y.downloadLevel <= currentPercent) && (y.downloadLevel < 100) {
 		y.downloadLevel++
-		y.DownloadPercent <- int(y.downloadLevel)
+    y.downloadPercent <- y.downloadLevel
 	}
 	return
 }

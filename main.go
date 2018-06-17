@@ -1,101 +1,156 @@
 package main
 
 import (
+  "os"
   "fmt"
+  "time"
+  "strings"
+  "strconv"
+  "os/exec"
 )
 
-type stream map[string]string
-
 type Youtube struct {
-	StreamList        []stream
-  url               string
-	VideoID           string
-	videoInfo         string
-	DownloadPercent   chan int
+  tgt_url           string
+  fileStem          string
 	contentLength     float64
 	totalWrittenBytes float64
 	downloadLevel     float64
-  filename          string
+  downloadPercent   chan float64
+  url               string
   title             string
   artist            string
   album             string
   year              string
 }
 
-func worker(id int, jobs <-chan *Youtube, results chan<- string) {
+func worker(id int, jobs <-chan Youtube, reply chan<- error, done chan<- bool) {
+
   for job := range jobs {
-    fmt.Printf("%d got job %s\n", id, job.title)
-    return
-    //results <- DownloadURL(job)
+    reply <- DownloadURL(&job)
+    fmt.Printf("Channel %d: %s by %s\n", id, job.title, job.artist)
+  }
+  done <- true
+}
+
+func displayAll(active []Youtube) {
+
+  fmt.Println("\033[2J")
+  fmt.Print("\nDownload Status:\n----------------\n")
+
+  // print out active status
+  for _, y := range active {
+    fmt.Printf("[%3.0f%%] Downloading: %s by %s\n",
+      y.downloadLevel, y.title, y.artist)
   }
 }
 
-func DownloadURL(y *Youtube) string {
+func DownloadURL(y *Youtube) error {
 
-  // decode the URL and fetch video metadata
-  err := y.DecodeURL( y.url )
+  // base name of target file
+  y.createFilename()
+
+  // decode the url using Youtube-DL plugin
+  err := y.DecodeURL()
   if err != nil {
-    return fmt.Sprintf("Failed decoding %s by %s: %s\n", y.title, y.artist, err)
+    return fmt.Errorf("Failed decoding %s by %s: %s", y.title, y.artist, err)
   }
 
-  // determine what filetype is being downloaded and set target file
-  fileStem, ext := y.createFilename()
-  downloadFile := fileStem + ext
-
   // begin the download
-  err = y.StartDownload(downloadFile)
+  err = y.videoDLWorker()
   if err != nil {
-    return fmt.Sprintf("Failed downloading %s by %s: %s", y.title, y.artist, err)
+    return fmt.Errorf("Failed downloading %s by %s: %s", y.title, y.artist, err)
   }
 
   // convert the file to raw WAV audio file
-  wavFile, err := y.toWAV(downloadFile)
+  wavFile, err := y.toWAV()
   if err != nil {
-    return fmt.Sprintf("Failed to decompress %s by %s: %s", y.title, y.artist, err)
+    return fmt.Errorf("Failed to decompress %s by %s: %s", y.title, y.artist, err)
   }
+
   // re-encode WAV file to opus
   err = y.toOPUS(wavFile)
   if err != nil {
-    return fmt.Sprintf("Failed to encode %s by %s: %s", y.title, y.artist, err)
+    return fmt.Errorf("Failed to encode %s by %s: %s", y.title, y.artist, err)
   }
 
   // clean up the temporary files
-  err = cleanFile(downloadFile, wavFile)
+  err = cleanFile(y.fileStem, wavFile)
   if err != nil {
-    return fmt.Sprintf("Failed to clean residual files for %s by %s: %s", y.title, y.artist, err)
+    return fmt.Errorf("Failed to clean residual files for %s by %s: %s", y.title, y.artist, err)
   }
 
-  return fmt.Sprintf("Download Completed: %s by %s", y.title, y.artist)
+  return nil
+}
+
+func (y *Youtube) DecodeURL() error {
+  cmd := exec.Command("python3", "ytdl.py", y.url)
+
+  out, err := cmd.Output()
+  if err != nil {
+    return err
+  }
+
+  y.tgt_url = strings.TrimSpace(string(out))
+  return nil
 }
 
 func main() {
 
-  // these will eventually be command like argument parsing
-  Targets := parseCSV("test.csv")
+  start := time.Now()
 
-  workers := 2  // number of worker to run
+  // check command line arguments
+  if len(os.Args) != 3 {
+    fmt.Println("USAGE: ytget [path to csv file] [# workers]")
+    return
+  }
+
+  Targets := parseCSV(os.Args[1])
+  workers, err := strconv.Atoi(os.Args[2])  // number of worker to run
+  if err != nil {
+    fmt.Println("Invalid number of workers entered")
+    return
+  }
+
+  // limit the number of workers that can be spawned
+  if workers < 1 || workers > 10 {
+    fmt.Println("Must have between 1 and 10 workers")
+    return
+  }
+
+  // make sure more workers are not started than jobs
+  if len(Targets) < workers { workers = len(Targets) }
 
   // create buffered channels
-  fmt.Println(len(Targets))
-  jobs := make(chan *Youtube, len(Targets))
-  results := make(chan string, len(Targets))
+  jobs := make(chan Youtube, len(Targets))
+  reply := make(chan error, len(Targets))
 
   // start workers
+  var done []chan bool
   for w := 1; w <= workers; w++ {
-    go worker(w, jobs, results)
+    trigger := make(chan bool, 1)
+    go worker(w, jobs, reply, trigger)
+    done = append(done, trigger)
   }
 
   // stack jobs onto the work queue
   for _, job := range Targets {
-    fmt.Printf("pushing job: %s to queue\n", job.title)
-    jobs <- &job
+    jobs <- job
   }
   close(jobs)
 
-  // print out return status
-/*  for range Targets {
-    message := <-results
-    fmt.Println(message)
+  // when each worker has finished, collect errors
+  for _, msg := range done {
+    <-msg
   }
-*/
+  close(reply)
+
+  // print out errors as they arrive
+  for result := range reply {
+    if result != nil {
+      fmt.Println(result)
+    }
+  }
+
+  // program run-time
+  fmt.Printf("\nRun Time: %s\n", time.Since(start))
 }
