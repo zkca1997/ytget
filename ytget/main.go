@@ -101,7 +101,7 @@ func main() {
   start := time.Now()
 
   // get download list
-  queueFile := "/home/tkirk/Music/meta/queue.csv"
+  queueFile := "/home/tkirk/Music/.meta/queue.csv"
   outDir := "/home/tkirk/Music/"
   Targets := parseCSV(queueFile, outDir)
 

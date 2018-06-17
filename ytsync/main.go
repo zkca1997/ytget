@@ -26,7 +26,7 @@ func main() {
   music_dir := "/home/tkirk/Music/"
   have := getCurrentTracks(music_dir)
 
-  man_file := "/home/tkirk/Music/meta/manifest.csv"
+  man_file := "/home/tkirk/Music/.meta/manifest.csv"
   need := missingManifest(man_file, have)
 
   fmt.Printf("\nAdding to Queue:\n----------------\n")
@@ -35,7 +35,7 @@ func main() {
   }
   fmt.Println()
 
-  queue_file := "/home/tkirk/Music/meta/queue.csv"
+  queue_file := "/home/tkirk/Music/.meta/queue.csv"
   writeQueue(need, queue_file)
 }
 
