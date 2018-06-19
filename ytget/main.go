@@ -101,7 +101,7 @@ func main() {
 	queueFile := "/home/tkirk/Music/.meta/queue.csv"
 	outDir := "/home/tkirk/Music/"
 	Targets := parseCSV(queueFile, outDir)
-	workers := 5
+	workers := 4
 
 	// create buffered channels
 	jobs := make(chan Youtube, len(Targets))
