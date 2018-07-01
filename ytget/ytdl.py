@@ -1,3 +1,5 @@
+#!/bin/bash
+
 import sys
 from django.core.validators import URLValidator
 from youtube_dl import YoutubeDL as YT

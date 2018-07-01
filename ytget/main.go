@@ -82,7 +82,7 @@ func DownloadURL(y *Youtube) error {
 }
 
 func (y *Youtube) DecodeURL() error {
-	cmd := exec.Command("python3", "ytdl.py", y.url)
+	cmd := exec.Command("python3", "/home/tkirk/Music/.meta/ytdl.py", y.url)
 
 	out, err := cmd.Output()
 	if err != nil {
