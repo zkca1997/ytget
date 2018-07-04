@@ -1,139 +1,64 @@
 package main
 
 import (
-	"fmt"
-	"os/exec"
-	"strings"
-	"time"
+  "os"
+  "fmt"
+  "time"
 )
 
 type Youtube struct {
-	tgt_url           string
-	fileStem          string
-	directory         string
-	contentLength     float64
-	totalWrittenBytes float64
-	downloadLevel     float64
-	downloadPercent   chan float64
-	url               string
-	title             string
-	artist            string
-	album             string
-	year              string
-}
-
-func worker(id int, jobs <-chan Youtube, reply chan<- error, done chan<- bool) {
-
-	for job := range jobs {
-		reply <- DownloadURL(&job)
-		fmt.Printf("Channel %d: %s by %s\n", id, job.title, job.artist)
-	}
-	done <- true
-}
-
-func displayAll(active []Youtube) {
-
-	fmt.Println("\033[2J")
-	fmt.Print("\nDownload Status:\n----------------\n")
-
-	// print out active status
-	for _, y := range active {
-		fmt.Printf("[%3.0f%%] Downloading: %s by %s\n",
-			y.downloadLevel, y.title, y.artist)
-	}
-}
-
-func DownloadURL(y *Youtube) error {
-
-	// base name of target file
-	y.createFilename()
-
-	// decode the url using Youtube-DL plugin
-	err := y.DecodeURL()
-	if err != nil {
-		return fmt.Errorf("Failed decoding %s by %s: %s", y.title, y.artist, err)
-	}
-
-	// begin the download
-	err = y.videoDLWorker()
-	if err != nil {
-		return fmt.Errorf("Failed downloading %s by %s: %s", y.title, y.artist, err)
-	}
-
-	// convert the file to raw WAV audio file
-	wavFile, err := y.toWAV()
-	if err != nil {
-		return fmt.Errorf("Failed to decompress %s by %s: %s", y.title, y.artist, err)
-	}
-
-	// re-encode WAV file to opus
-	err = y.toOPUS(wavFile)
-	if err != nil {
-		return fmt.Errorf("Failed to encode %s by %s: %s", y.title, y.artist, err)
-	}
-
-	// clean up the temporary files
-	err = cleanFile(y.fileStem, wavFile)
-	if err != nil {
-		return fmt.Errorf("Failed to clean residual files for %s by %s: %s", y.title, y.artist, err)
-	}
-
-	return nil
-}
-
-func (y *Youtube) DecodeURL() error {
-	cmd := exec.Command("python3", "/home/tkirk/Music/.meta/ytdl.py", y.url)
-
-	out, err := cmd.Output()
-	if err != nil {
-		return err
-	}
-
-	y.tgt_url = strings.TrimSpace(string(out))
-	return nil
+  // for extractor
+	public_url         string
+  // for downloader
+  hidden_url         string
+	contentLength      float64
+	totalWrittenBytes  float64
+	downloadLevel      float64
+  // for encoder
+  fileStem           string
+  directory          string
+	title              string
+	artist             string
+	album              string
+	year               string
+  // for main
+  result             error
 }
 
 func main() {
 
-	start := time.Now()
+  start := time.Now() // start program run timer
 
-	// get download list
-	queueFile := "/home/tkirk/Music/.meta/queue.csv"
-	outDir := "/home/tkirk/Music/"
-	Targets := parseCSV(queueFile, outDir)
-	workers := 4
+  // get filesystem locations
+  home := os.Getenv("HOME")
+  outDir := home + "/Music/"
+  queueFile := outDir + "/.meta/queue.csv"
 
-	// create buffered channels
-	jobs := make(chan Youtube, len(Targets))
-	reply := make(chan error, len(Targets))
+  // get list of targets and initialize
+  Targets := parseCSV(queueFile, outDir)
 
-	// start workers
-	var done []chan bool
-	for w := 1; w <= workers; w++ {
-		trigger := make(chan bool, 1)
-		go worker(w, jobs, reply, trigger)
-		done = append(done, trigger)
-	}
+  // create buffered channels
+  jobs := make(chan *Youtube, len(Targets))
+  pipe1 := make(chan *Youtube, len(Targets))
+  pipe2 := make(chan *Youtube, len(Targets))
+  reply := make(chan error, len(Targets))
 
-	// stack jobs onto the work queue
-	for _, job := range Targets {
-		jobs <- job
-	}
-	close(jobs)
+  // spool up services
+  go extractor(jobs, pipe1, reply)
+  go downloader(pipe1, pipe2, reply)
+  go encoder(pipe2, reply)
 
-	// when each worker has finished, collect errors
-	for _, msg := range done {
-		<-msg
-	}
-	close(reply)
+  // feed targets into pipeline
+  for _, job := range Targets {
+    jobs <- job
+  }
+  close(jobs)
 
-	// print out errors as they arrive
-	for result := range reply {
-		if result != nil {
-			fmt.Println(result)
-		}
-	}
+  // read success state
+  for result := range reply {
+    fmt.Printf("Error:\t%s\n", result)
+  }
 
-	// program run-time
-	fmt.Printf("\nRun Time: %s\n", time.Since(start))
+  // print program runtime
+  fmt.Printf("\nRun Time: %s\n", time.Since(start))
 }

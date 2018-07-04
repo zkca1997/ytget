@@ -8,7 +8,7 @@ import (
   "encoding/csv"
 )
 
-func parseCSV(inFile string, directory string) []Youtube {
+func parseCSV(inFile string, directory string) []*Youtube {
 
   csvFile, err := os.Open(inFile)
   if err != nil {
@@ -16,7 +16,7 @@ func parseCSV(inFile string, directory string) []Youtube {
   }
 
   reader := csv.NewReader(bufio.NewReader(csvFile))
-  var Targets []Youtube
+  var Targets []*Youtube
 
   for {
     line, error := reader.Read()
@@ -26,14 +26,13 @@ func parseCSV(inFile string, directory string) []Youtube {
         log.Fatal(error)
     }
 
-    Targets = append(Targets, Youtube{
-      downloadPercent: make(chan float64, 100),
-      url:    line[0],
-      title:  line[1],
-      artist: line[2],
-      album:  line[3],
-      year:   line[4],
-      directory: directory,
+    Targets = append(Targets, &Youtube{
+      public_url: line[0],
+      title:      line[1],
+      artist:     line[2],
+      album:      line[3],
+      year:       line[4],
+      directory:  directory,
     })
   }
 

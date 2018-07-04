@@ -23,19 +23,22 @@ type track struct {
 
 func main() {
 
-  music_dir := "/home/tkirk/Music/"
+  music_dir := os.Getenv("HOME") + "/Music"
   have := getCurrentTracks(music_dir)
 
-  man_file := "/home/tkirk/Music/.meta/manifest.csv"
+  man_file := music_dir + "/.meta/manifest.csv"
   need := missingManifest(man_file, have)
 
-  fmt.Printf("\nAdding to Queue:\n----------------\n")
-  for _, entry := range need {
-    fmt.Printf("%s by %s\n", entry.title, entry.artist)
+  // print list of tracks to download
+  if len(need) > 0 {
+    fmt.Printf("\nAdding to Queue:\n----------------\n")
+    for _, entry := range need {
+      fmt.Printf("%s by %s\n", entry.title, entry.artist)
+    }
+    fmt.Println()
   }
-  fmt.Println()
 
-  queue_file := "/home/tkirk/Music/.meta/queue.csv"
+  queue_file := music_dir + "/.meta/queue.csv"
   writeQueue(need, queue_file)
 }
 
