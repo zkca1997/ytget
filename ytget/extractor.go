@@ -62,7 +62,7 @@ func (y *Youtube) extractorRequest() error {
 
   // check status code
   if resp.StatusCode != 200 {
-    return fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
+    return fmt.Errorf("job [%s by %s]: Server Reponse Status not 200", y.title, y.artist)
   }
 
   body, err := ioutil.ReadAll(resp.Body)
