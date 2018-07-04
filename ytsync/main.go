@@ -18,31 +18,83 @@ type track struct {
   artist    string
   album     string
   year      string
-  filename  string
 }
 
 func main() {
 
   music_dir := os.Getenv("HOME") + "/Music"
   have := getCurrentTracks(music_dir)
+  want, data := readManifest(music_dir + "/.meta/manifest.csv")
 
-  man_file := music_dir + "/.meta/manifest.csv"
-  need := missingManifest(man_file, have)
+  get, del := findDiff(have, want)
 
   // print list of tracks to download
-  if len(need) > 0 {
+  if len(get) > 0 {
     fmt.Printf("\nAdding to Queue:\n----------------\n")
-    for _, entry := range need {
-      fmt.Printf("%s by %s\n", entry.title, entry.artist)
+    for _, entry := range get {
+      fmt.Printf("%s by %s\n", data[entry].title, data[entry].artist)
+    }
+  }
+
+  // print list of tracks to delete
+  if len(del) > 0 {
+    fmt.Printf("\nDeleting from Library:\n----------------------\n")
+    for _, entry := range del {
+      fmt.Println(entry)
     }
     fmt.Println()
   }
 
+  // prompt for user consent
+  fmt.Println("Press Enter to confirm changes (Ctrl-C to Cancel): ")
+  var input string
+  fmt.Scanln(&input)
+
   queue_file := music_dir + "/.meta/queue.csv"
-  writeQueue(need, queue_file)
+  writeQueue(get, data, queue_file)
+  deleteFiles(del, music_dir)
 }
 
-func writeQueue(tracks []track, filename string) {
+func deleteFiles(tracks []string, directory string) {
+  for _, track := range tracks {
+    err := os.Remove(directory + "/" + track)
+    if err != nil {
+      fmt.Printf("failed to delete: %s\n", track)
+    }
+  }
+}
+
+func findDiff(have []string, want []string) ([]string, []string) {
+  /* this is very inefficient, awaiting sorting optimization */
+
+  var get []string
+  for _, a := range want {
+    match := false
+    for _, b := range have {
+      if strings.Compare(a, b) == 0 {
+        match = true
+        break
+      }
+    }
+    if match == false { get = append(get, a) }
+  }
+
+  var del []string
+  for _, a := range have {
+    match := false
+    for _, b := range want {
+      if strings.Compare(a, b) == 0 {
+        match = true
+        break
+      }
+    }
+    if match == false { del = append(del, a) }
+  }
+
+  return get, del
+}
+
+func writeQueue(tracks []string, data map[string]track, filename string) {
   file, err := os.Create(filename)
   if err != nil { log.Fatal(err) }
   defer file.Close()
@@ -52,11 +104,11 @@ func writeQueue(tracks []track, filename string) {
 
   for _, entry := range tracks {
     var data = []string {
-      entry.url,
-      entry.title,
-      entry.artist,
-      entry.album,
-      entry.year }
+      data[entry].url,
+      data[entry].title,
+      data[entry].artist,
+      data[entry].album,
+      data[entry].year }
     err := writer.Write(data)
     if err != nil { log.Fatal(err) }
   }
@@ -71,13 +123,16 @@ func getCurrentTracks(music_path string) []string {
 
   var tracks []string
   for _, f := range files {
-    tracks = append(tracks, f.Name())
+    if !f.IsDir() {
+      tracks = append(tracks, f.Name())
+
+    }
   }
 
   return tracks
 }
 
-func missingManifest(filename string, have[]string) []track {
+func readManifest(filename string) ([]string, map[string]track) {
 
   // open file
   manifestFile, err := os.Open(filename)
@@ -87,10 +142,10 @@ func missingManifest(filename string, have[]string) []track {
 
   // open CSV parser
   reader := csv.NewReader(bufio.NewReader(manifestFile))
-  var tracks []track
+  data := make(map[string]track)
+  var filelist []string
 
   for {
-
     // check for end of file
     line, err := reader.Read()
     if err == io.EOF {
@@ -99,35 +154,21 @@ func missingManifest(filename string, have[]string) []track {
         log.Fatal(err)
     }
 
-    // create label for entry
-    track_label := createFilename(line[1], line[2])
+    // filename added to list
+    file := createFilename(line[1], line[2])
+    filelist = append(filelist, file)
 
-    // see if already have this file
-    own := haveTrack(track_label, have)
-
-    // if don't have it, add to download queue list
-    if !own {
-      var entry track
-      entry.url = line[0]
-      entry.title = line[1]
-      entry.artist = line[2]
-      entry.album = line[3]
-      entry.year = line[4]
-      tracks = append(tracks, entry)
-    }
-
+    // read the metadata and append to slice
+    var entry track
+    entry.url = line[0]
+    entry.title = line[1]
+    entry.artist = line[2]
+    entry.album = line[3]
+    entry.year = line[4]
+    data[file] = entry
   }
 
-  return tracks
-}
-
-func haveTrack(test string, have []string) bool {
-  for _, label := range have {
-    if label == test {
-      return true
-    }
-  }
-  return false
+  return filelist, data
 }
 
 func createFilename(title string, artist string) string {
