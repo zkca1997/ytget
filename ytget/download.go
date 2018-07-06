@@ -4,8 +4,6 @@ import (
   "os"
   "io"
   "fmt"
-  "regexp"
-  "strings"
   "net/http"
   "path/filepath"
 )
@@ -47,8 +45,8 @@ func (y *Youtube) downloadWorker(out chan<- *Youtube, fail chan<- error, done ch
     return
 	}
 
-  y.createFilename()
-	err = os.MkdirAll(filepath.Dir(y.fileStem), 666)
+  // create a working directory for download
+	err = os.MkdirAll(filepath.Dir(y.fileStem), 0755)
 	if err != nil {
     fail <- fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
     return
@@ -81,17 +79,4 @@ func (y *Youtube) Write(p []byte) (n int, err error) {
 		y.downloadLevel++
 	}
 	return
-}
-
-func (y *Youtube) createFilename() {
-  nospace := regexp.MustCompile(`\s`)
-  nospec  := regexp.MustCompile(`[^\w\s]`)
-
-  tmp := fmt.Sprintf("%s %s", y.artist, y.title)
-  tmp = strings.ToLower(tmp)
-  tmp = nospec.ReplaceAllString(tmp, "")
-  tmp = nospace.ReplaceAllString(tmp, "_")
-
-  y.fileStem = y.directory + tmp
-  return
 }

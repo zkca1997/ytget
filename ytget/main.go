@@ -16,7 +16,6 @@ type Youtube struct {
 	downloadLevel      float64
   // for encoder
   fileStem           string
-  directory          string
 	title              string
 	artist             string
 	album              string

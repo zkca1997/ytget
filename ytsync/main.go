@@ -5,11 +5,11 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"regexp"
 	"strings"
+	"path/filepath"
 )
 
 type track struct {
@@ -22,9 +22,9 @@ type track struct {
 
 func main() {
 
-	music_dir := os.Getenv("HOME") + "/Music"
+	music_dir := filepath.Join(os.Getenv("HOME"), "Music")
 	have := getCurrentTracks(music_dir)
-	want, data := readManifest(music_dir + "/.meta/manifest.csv")
+	want, data := readManifest(filepath.Join(music_dir, ".meta", "manifest.csv"))
 
 	get, del := findDiff(have, want)
 
@@ -123,23 +123,29 @@ func writeQueue(tracks []string, data map[string]track, filename string) {
 
 func getCurrentTracks(music_path string) []string {
 
-	files, err := ioutil.ReadDir(music_path)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	pattern := filepath.Join(music_path, "*", "*", "*")
+	longtracks, err := filepath.Glob(pattern)
+	if err != nil { log.Fatalf("Fatal Error: %s\n", err) }
 	var tracks []string
-	for _, f := range files {
-		if !f.IsDir() {
-			tracks = append(tracks, f.Name())
 
-		}
+	for _, member := range longtracks {
+		title := filepath.Base(member)
+		tmp := filepath.Dir(member)
+		album := filepath.Base(tmp)
+		tmp = filepath.Dir(tmp)
+		artist := filepath.Base(tmp)
+		foo := filepath.Join(artist, album, title)
+		tracks = append(tracks, foo)
 	}
 
 	return tracks
 }
 
 func readManifest(filename string) ([]string, map[string]track) {
+
+	// compile regex patterns
+	nospace := regexp.MustCompile(`\s`)
+	nospec := regexp.MustCompile(`[^\w\s]`)
 
 	// open file
 	manifestFile, err := os.Open(filename)
@@ -162,7 +168,19 @@ func readManifest(filename string) ([]string, map[string]track) {
 		}
 
 		// filename added to list
-		file := createFilename(line[1], line[2])
+		title := strings.ToLower(line[1])
+		title = nospec.ReplaceAllString(title, "")
+		title = nospace.ReplaceAllString(title, "_")
+
+		artist := strings.ToLower(line[2])
+		artist = nospec.ReplaceAllString(artist, "")
+		artist = nospace.ReplaceAllString(artist, "_")
+
+		album := strings.ToLower(line[3])
+		album = nospec.ReplaceAllString(album, "")
+		album = nospace.ReplaceAllString(album, "_")
+
+		file := filepath.Join(artist, album, title + ".opus")
 		filelist = append(filelist, file)
 
 		// read the metadata and append to slice
@@ -176,16 +194,4 @@ func readManifest(filename string) ([]string, map[string]track) {
 	}
 
 	return filelist, data
-}
-
-func createFilename(title string, artist string) string {
-	nospace := regexp.MustCompile(`\s`)
-	nospec := regexp.MustCompile(`[^\w\s]`)
-
-	tmp := fmt.Sprintf("%s %s", artist, title)
-	tmp = strings.ToLower(tmp)
-	tmp = nospec.ReplaceAllString(tmp, "")
-	tmp = nospace.ReplaceAllString(tmp, "_")
-
-	return tmp + ".opus"
 }
