@@ -13,8 +13,12 @@ var (
 )
 
 func init() {
-	music_dir  = filepath.Join(os.Getenv("HOME"), "music")
-	meta_file  = filepath.Join(music_dir, ".meta", "manifest.csv")
+
+	default_music_dir  := filepath.Join(os.Getenv("HOME"), "Music")
+	default_meta_file  := filepath.Join(music_dir, ".meta", "manifest.csv")
+
+	flag.StringVar(&music_dir, "d", default_music_dir, "root of the music directory")
+	flag.StringVar(&meta_file, "m", default_meta_file, "manifest file of music library")
 }
 
 func main() {

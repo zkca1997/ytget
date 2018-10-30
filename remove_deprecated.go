@@ -8,18 +8,18 @@ import (
 	"path/filepath"
 )
 
-func remove_deprecated(del []*track, music_dir string) error {
+func remove_deprecated(del []*track, music_dir string) {
 
 	// print all tracks marked for removal
 	fmt.Println("\nTracks Marked for Removal from Library:")
 	fmt.Println("---------------------------------------")
 	for _, entry := range del {
-		fmt.Println(entry)
+		fmt.Printf("%s_%s.ogg\n", entry.artist, entry.title)
 	}
 
 	// prompt user input and hang until valid response
 	for {
-		fmt.Println("\nConfirm Removal of Listed Tracks [y/N]: ")
+		fmt.Print("\nConfirm Removal of Listed Tracks [y/N]: ")
 		var input string
 		fmt.Scanln(&input)
 
@@ -33,7 +33,7 @@ func remove_deprecated(del []*track, music_dir string) error {
 		switch input {
 			case "y":
 				deleteFiles(del, music_dir)
-				break;
+				return;
 			case "N":
 				os.Exit(0)
 			default:
