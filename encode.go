@@ -8,7 +8,7 @@ import (
   "runtime"
 )
 
-func encoder(in <-chan *Youtube, fail chan<- error) {
+func encoder(in <-chan *track, fail chan<- error) {
 
   done := make(chan bool)
 
@@ -27,7 +27,7 @@ func encoder(in <-chan *Youtube, fail chan<- error) {
   return
 }
 
-func encoderWorker(jobs <-chan *Youtube, fail chan<- error, done chan<- bool) {
+func encoderWorker(jobs <-chan *track, fail chan<- error, done chan<- bool) {
 
   for job := range jobs {
     // convert the file to raw WAV audio file
@@ -45,7 +45,7 @@ func encoderWorker(jobs <-chan *Youtube, fail chan<- error, done chan<- bool) {
     }
 
     // clean up the temporary files
-    err = cleanFile(job.fileStem, wavFile)
+    err = cleanFile(job.path, wavFile)
     if err != nil {
       fail <- fmt.Errorf("Failed to clean residual files for %s by %s: %s", job.title, job.artist, err)
       continue
@@ -58,11 +58,11 @@ func encoderWorker(jobs <-chan *Youtube, fail chan<- error, done chan<- bool) {
   return
 }
 
-func (y *Youtube) toWAV() (string, error) {
+func (y *track) toWAV() (string, error) {
 
-  wavFile := y.fileStem + ".wav"
+  wavFile := y.path + ".wav"
 
-  cmd := exec.Command("ffmpeg", "-y", "-i", y.fileStem, wavFile)
+  cmd := exec.Command("ffmpeg", "-y", "-i", y.path, wavFile)
   out, err := cmd.CombinedOutput()
   if err != nil {
     fmt.Println(out)
@@ -72,9 +72,9 @@ func (y *Youtube) toWAV() (string, error) {
   return wavFile, nil
 }
 
-func (y *Youtube) toOPUS(wavFile string) error {
+func (y *track) toOPUS(wavFile string) error {
 
-  outFile := y.fileStem + ".opus"
+  outFile := y.path + ".ogg"
 
   cmd := exec.Command("opusenc", "--title", y.title, "--artist", y.artist,
     "--album", y.album, "--date", y.year, wavFile, outFile)

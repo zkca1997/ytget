@@ -9,7 +9,7 @@ import (
   "io/ioutil"
 )
 
-func extractor(in <-chan *Youtube, out chan<- *Youtube, fail chan<- error) {
+func extractor(in <-chan *track, out chan<- *track, fail chan<- error) {
 
   extractorService := exec.Command("extractorService.py")
   err := extractorService.Start()
@@ -50,7 +50,7 @@ func extractor(in <-chan *Youtube, out chan<- *Youtube, fail chan<- error) {
   }
 }
 
-func (y *Youtube) extractorRequest() error {
+func (y *track) extractorRequest() error {
 
   // query extractor server for hidden url
   req_url := "http://localhost:8081?input=" + y.public_url

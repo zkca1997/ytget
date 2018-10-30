@@ -8,7 +8,7 @@ import (
   "path/filepath"
 )
 
-func downloader(in <-chan *Youtube, out chan<- *Youtube, fail chan<- error) {
+func downloader(in <-chan *track, out chan<- *track, fail chan<- error) {
 
   done := make(chan bool)
   var count int
@@ -26,7 +26,7 @@ func downloader(in <-chan *Youtube, out chan<- *Youtube, fail chan<- error) {
   return
 }
 
-func (y *Youtube) downloadWorker(out chan<- *Youtube, fail chan<- error, done chan<- bool) {
+func (y *track) downloadWorker(out chan<- *track, fail chan<- error, done chan<- bool) {
 
   // get the content
 	resp, err := http.Get(y.hidden_url)
@@ -46,13 +46,13 @@ func (y *Youtube) downloadWorker(out chan<- *Youtube, fail chan<- error, done ch
 	}
 
   // create a working directory for download
-	err = os.MkdirAll(filepath.Dir(y.fileStem), 0755)
+	err = os.MkdirAll(filepath.Dir(y.path), 0755)
 	if err != nil {
     fail <- fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
     return
   }
 
-	output, err := os.Create(y.fileStem)
+	output, err := os.Create(y.path)
 	if err != nil {
     fail <- fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
     return
@@ -71,7 +71,7 @@ func (y *Youtube) downloadWorker(out chan<- *Youtube, fail chan<- error, done ch
 	return
 }
 
-func (y *Youtube) Write(p []byte) (n int, err error) {
+func (y *track) Write(p []byte) (n int, err error) {
 	n = len(p)
 	y.totalWrittenBytes = y.totalWrittenBytes + float64(n)
 	currentPercent := ((y.totalWrittenBytes / y.contentLength) * 100)
