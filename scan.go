@@ -61,7 +61,7 @@ func readManifest(filename string, music_path string) map[string]track {
 	// open file
 	manifestFile, err := os.Open(filename)
 	if err != nil {
-		log.Fatal("Error opening %s: %s\n", filename, err)
+		log.Fatalf("Error opening %s: %s\n", filename, err)
 	}
 
 	list := make(map[string]track)

@@ -4,6 +4,8 @@ import (
 	"os"
 	"fmt"
 	"flag"
+	"strings"
+	"runtime"
 	"path/filepath"
 )
 
@@ -15,7 +17,7 @@ var (
 func init() {
 
 	default_music_dir  := filepath.Join(os.Getenv("HOME"), "Music")
-	default_meta_file  := filepath.Join(music_dir, ".meta", "manifest.csv")
+	default_meta_file  := filepath.Join(default_music_dir, ".meta", "manifest.csv")
 
 	flag.StringVar(&music_dir, "d", default_music_dir, "root of the music directory")
 	flag.StringVar(&meta_file, "m", default_meta_file, "manifest file of music library")
@@ -33,7 +35,36 @@ func main() {
 	if len(del) > 0 { remove_deprecated(del, music_dir) }
 
 	// download new songs
-	sync(get)
+	// print all tracks marked for download
+	fmt.Println("\nTracks Marked for Download:")
+	fmt.Println("-----------------------------")
+	for _, entry := range get {
+		fmt.Printf("%s_%s.ogg\n", entry.artist, entry.title)
+	}
+
+	// prompt user input and hang until valid response
+	for {
+		fmt.Print("\nConfirm Download of Listed Tracks [y/N]: ")
+		var input string
+		fmt.Scanln(&input)
+
+		// trim raw STDIN input for native OS
+		if runtime.GOOS == "windows" {
+			input = strings.TrimRight(input, "\r\n")
+		} else {
+			input = strings.TrimRight(input, "\n")
+		}
+
+		switch input {
+			case "y":
+				sync(get)
+				return;
+			case "N":
+				return;
+			default:
+		}
+
+	}
 }
 
 func sync(Targets []*track) {

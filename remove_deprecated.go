@@ -35,7 +35,7 @@ func remove_deprecated(del []*track, music_dir string) {
 				deleteFiles(del, music_dir)
 				return;
 			case "N":
-				os.Exit(0)
+				return;
 			default:
 		}
 
