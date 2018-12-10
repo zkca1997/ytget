@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
-	"path/filepath"
 )
 
 func remove_deprecated(del []*track, music_dir string) {
@@ -14,7 +13,7 @@ func remove_deprecated(del []*track, music_dir string) {
 	fmt.Println("\nTracks Marked for Removal from Library:")
 	fmt.Println("---------------------------------------")
 	for _, entry := range del {
-		fmt.Printf("%s_%s.ogg\n", entry.artist, entry.title)
+		fmt.Printf("%s.ogg\n", entry.id)
 	}
 
 	// prompt user input and hang until valid response
@@ -32,21 +31,14 @@ func remove_deprecated(del []*track, music_dir string) {
 
 		switch input {
 			case "y":
-				deleteFiles(del, music_dir)
+				for _, song := range del {
+					err := os.Remove(song.path)
+					if err != nil { fmt.Println(err) }
+				}
 				return;
 			case "N":
 				return;
 			default:
-		}
-
-	}
-}
-
-func deleteFiles(list []*track, music_dir string) {
-	for _, song := range list {
-		err := os.Remove(filepath.Join(music_dir, song.path))
-		if err != nil {
-			fmt.Printf("failed to delete: %s\n", song.path)
 		}
 	}
 }

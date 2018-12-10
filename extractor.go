@@ -39,7 +39,7 @@ func extractor(in <-chan *track, out chan<- *track, fail chan<- error) {
     if err != nil { fail <- err
     } else {
       out <- job
-      fmt.Printf("Extracted:\t%s by %s\n", job.title, job.artist)
+      fmt.Printf("Extracted:\t%s\n", job.humanName())
     }
   }
   close(out)
@@ -56,18 +56,18 @@ func (y *track) extractorRequest() error {
   req_url := "http://localhost:8081?input=" + y.public_url
   resp, err := http.Get(req_url)
   if err != nil {
-    return fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
+    return fmt.Errorf("[%s]: %s", y.humanName(), err)
   }
   defer resp.Body.Close()
 
   // check status code
   if resp.StatusCode != 200 {
-    return fmt.Errorf("job [%s by %s]: Server Reponse Status not 200", y.title, y.artist)
+    return fmt.Errorf("[%s]: Server Reponse Status not 200", y.humanName())
   }
 
   body, err := ioutil.ReadAll(resp.Body)
   if err != nil {
-    return fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
+    return fmt.Errorf("[%s]: %s", y.humanName(), err)
   }
 
   y.hidden_url = string(body)

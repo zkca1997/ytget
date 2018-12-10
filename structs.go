@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"fmt"
 	"regexp"
 	"strings"
 	"path/filepath"
@@ -22,6 +23,10 @@ type track struct {
  	result				error
 }
 
+func (song *track) humanName() string {
+	return fmt.Sprintf("%s by %s", song.title, song.artist)
+}
+
 func (song *track) initTrack(music_dir string) {
 
 	// if we are starting with a pathname
@@ -33,7 +38,7 @@ func (song *track) initTrack(music_dir string) {
 		}
 
 		tmp := filepath.Base(song.path)
-		song.title = strings.TrimRight(tmp, filepath.Ext(tmp))
+		song.title = strings.TrimSuffix(tmp, filepath.Ext(tmp))
 		tmp = filepath.Dir(song.path)
 		song.album = filepath.Base(tmp)
 		tmp = filepath.Dir(tmp)

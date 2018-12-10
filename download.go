@@ -32,7 +32,7 @@ func (y *track) downloadWorker(out chan<- *track, fail chan<- error, done chan<-
 	resp, err := http.Get(y.hidden_url)
 	if err != nil {
     fmt.Println(y.hidden_url)
-    fail <- fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
+    fail <- fmt.Errorf("job [%s]: %s", y.humanName(), err)
     return
   }
   defer resp.Body.Close()
@@ -41,31 +41,31 @@ func (y *track) downloadWorker(out chan<- *track, fail chan<- error, done chan<-
 
   // check that YouTube returns StatusCode "200"
 	if resp.StatusCode != 200 {
-		fail <- fmt.Errorf("job [%s by %s]: non 200 status returned", y.title, y.artist)
+		fail <- fmt.Errorf("job [%s]: non 200 status returned", y.humanName())
     return
 	}
 
   // create a working directory for download
 	err = os.MkdirAll(filepath.Dir(y.path), 0755)
 	if err != nil {
-    fail <- fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
+    fail <- fmt.Errorf("job [%s]: %s", y.humanName(), err)
     return
   }
 
 	output, err := os.Create(y.path)
 	if err != nil {
-    fail <- fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
+    fail <- fmt.Errorf("job [%s]: %s", y.humanName(), err)
     return
   }
 
 	mw := io.MultiWriter(output, y)
 	_, err = io.Copy(mw, resp.Body)
   if err != nil {
-    fail <- fmt.Errorf("job [%s by %s]: %s", y.title, y.artist, err)
+    fail <- fmt.Errorf("job [%s]: %s", y.humanName(), err)
     return
   }
 
-  fmt.Printf("Downloaded:\t%s by %s\n", y.title, y.artist)
+  fmt.Printf("Downloaded:\t%s\n", y.humanName())
   out <- y
   done <- true
 	return

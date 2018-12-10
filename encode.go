@@ -33,25 +33,25 @@ func encoderWorker(jobs <-chan *track, fail chan<- error, done chan<- bool) {
     // convert the file to raw WAV audio file
     wavFile, err := job.toWAV()
     if err != nil {
-      fail <- fmt.Errorf("Failed to decompress %s by %s: %s", job.title, job.artist, err)
+      fail <- fmt.Errorf("Failed to decompress %s: %s", job.humanName(), err)
       continue
     }
 
     // re-encode WAV file to opus
     err = job.toOPUS(wavFile)
     if err != nil {
-      fail <- fmt.Errorf("Failed to encode %s by %s: %s", job.title, job.artist, err)
+      fail <- fmt.Errorf("Failed to encode %s: %s", job.humanName(), err)
       continue
     }
 
     // clean up the temporary files
     err = cleanFile(job.path, wavFile)
     if err != nil {
-      fail <- fmt.Errorf("Failed to clean residual files for %s by %s: %s", job.title, job.artist, err)
+      fail <- fmt.Errorf("Failed to clean residual files for %s: %s", job.humanName(), err)
       continue
     }
 
-    fmt.Printf("Encoded:\t%s by %s\n", job.title, job.artist)
+    fmt.Printf("Encoded:\t%s\n", job.humanName())
   }
 
   done <- true

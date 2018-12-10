@@ -39,7 +39,7 @@ func main() {
 	fmt.Println("\nTracks Marked for Download:")
 	fmt.Println("-----------------------------")
 	for _, entry := range get {
-		fmt.Printf("%s_%s.ogg\n", entry.artist, entry.title)
+		fmt.Printf("%s.ogg\n", entry.id)
 	}
 
 	// prompt user input and hang until valid response
@@ -88,6 +88,6 @@ func sync(Targets []*track) {
 
 	// read success state
 	for result := range reply {
-		fmt.Printf("Error:\t%s\n", result)
+		fmt.Printf("Job Error:\t%s\n", result)
 	}
 }
